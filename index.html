@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Code Visualizer</title>
+  <meta name="description" content="Visualize any short code or hex string as colors, patterns, bytes, and more." />
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <style>
+    :root {
+      --c1: #8b5cf6;
+      --c2: #ec4899;
+      --bg: #0b0b10;
+    }
+    .glass {
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+    .swatch {
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.2), 0 8px 24px rgba(0,0,0,.35);
+    }
+    canvas { image-rendering: pixelated; }
+  </style>
+</head>
+<body class="min-h-screen text-white" style="background: radial-gradient(1200px 600px at 100% -10%, color-mix(in oklab, var(--c2) 18%, black), transparent 70%), radial-gradient(1000px 500px at -10% 0%, color-mix(in oklab, var(--c1) 22%, black), transparent 65%), linear-gradient(180deg, #0a0a0f, #090912 60%, #0a0a10);">
+  <header class="relative">
+    <div id="hero" class="w-full">
+      <div class="max-w-5xl mx-auto px-6 pt-14 pb-10">
+        <div class="glass rounded-2xl p-6 sm:p-8">
+          <div class="flex items-center gap-4">
+            <div class="h-12 w-12 rounded-lg" id="heroChip" style="background: linear-gradient(135deg, var(--c1), var(--c2)); box-shadow: 0 6px 18px rgba(0,0,0,.35);"></div>
+            <div>
+              <h1 class="text-2xl sm:text-3xl font-semibold tracking-tight">Code Visualizer</h1>
+              <p class="text-white/70 text-sm sm:text-base">Turn any code into colors, patterns, bytes, and numbers.</p>
+            </div>
+          </div>
+          <div class="mt-6 grid gap-3 sm:grid-cols-[1fr_auto_auto] items-stretch">
+            <input id="codeInput" class="w-full glass rounded-xl px-4 py-3 text-base outline-none focus:ring-2 focus:ring-white/25 placeholder:text-white/40" placeholder="Enter a code or hex (e.g. a95d203e-22a4)" />
+            <button id="randomBtn" class="glass rounded-xl px-4 py-3 font-medium hover:bg-white/10 transition">Random</button>
+            <button id="shareBtn" class="glass rounded-xl px-4 py-3 font-medium hover:bg-white/10 transition">Copy link</button>
+          </div>
+          <p id="status" class="mt-3 text-xs text-white/60 select-all"></p>
+        </div>
+      </div>
+    </div>
+  </header>
+  <main class="max-w-5xl mx-auto px-6 pb-20">
+    <section class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <!-- Colors -->
+      <div class="glass rounded-2xl p-5 flex flex-col gap-4">
+        <h2 class="text-lg font-semibold">Colors</h2>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="swatch rounded-xl h-24" id="swatch1"></div>
+          <div class="swatch rounded-xl h-24" id="swatch2"></div>
+        </div>
+        <div class="text-sm text-white/80">
+          <div>Primary: <code id="hex1" class="text-white/90"></code></div>
+          <div>Secondary: <code id="hex2" class="text-white/90"></code></div>
+        </div>
+        <div class="rounded-xl h-16 swatch" id="gradient" style="background: linear-gradient(90deg, var(--c1), var(--c2));"></div>
+      </div>
+      <!-- Identicon -->
+      <div class="glass rounded-2xl p-5 flex flex-col gap-4">
+        <h2 class="text-lg font-semibold">Identicon</h2>
+        <canvas id="identicon" width="180" height="180" class="rounded-xl border border-white/10 bg-black/20"></canvas>
+        <p class="text-xs text-white/60">A symmetric 5×5 identicon derived from your code.</p>
+      </div>
+      <!-- Pattern -->
+      <div class="glass rounded-2xl p-5 flex flex-col gap-4 lg:row-span-2">
+        <h2 class="text-lg font-semibold">Generative Pattern</h2>
+        <canvas id="pattern" width="420" height="420" class="rounded-xl border border-white/10 bg-black/20 w-full h-auto"></canvas>
+        <p class="text-xs text-white/60">A deterministic pattern using a PRNG seeded by your code.</p>
+      </div>
+      <!-- Bytes -->
+      <div class="glass rounded-2xl p-5 flex flex-col gap-4">
+        <h2 class="text-lg font-semibold">Bytes</h2>
+        <div class="max-h-56 overflow-auto rounded-xl border border-white/10">
+          <table class="w-full text-sm">
+            <thead class="bg-white/5">
+              <tr>
+                <th class="text-left px-3 py-2 font-medium">Index</th>
+                <th class="text-left px-3 py-2 font-medium">Hex</th>
+                <th class="text-left px-3 py-2 font-medium">Dec</th>
+              </tr>
+            </thead>
+            <tbody id="bytesBody"></tbody>
+          </table>
+        </div>
+        <div class="text-xs text-white/60">Odd-length hex is auto-padded at the end to complete a byte.</div>
+      </div>
+      <!-- Numbers & Encodings -->
+      <div class="glass rounded-2xl p-5 flex flex-col gap-4">
+        <h2 class="text-lg font-semibold">Numbers & Encodings</h2>
+        <div class="space-y-2 text-sm">
+          <div class="flex items-center justify-between gap-4"><span class="text-white/70">Sanitized hex</span><code id="hexSan" class="text-white/90 break-all"></code></div>
+          <div class="flex items-center justify-between gap-4"><span class="text-white/70">Bit length</span><span id="bitLen" class="text-white/90"></span></div>
+          <div class="flex items-center justify-between gap-4"><span class="text-white/70">Decimal</span><span id="decimal" class="text-white/90 break-all"></span></div>
+          <div class="flex items-center justify-between gap-4"><span class="text-white/70">Binary (trimmed)</span><span id="binary" class="text-white/90 break-all"></span></div>
+          <div class="flex items-center justify-between gap-4"><span class="text-white/70">Base64 of bytes</span><span id="base64" class="text-white/90 break-all"></span></div>
+        </div>
+      </div>
+    </section>
+    <footer class="mt-10 text-center text-xs text-white/50">
+      Built locally in your browser. No data leaves your device.
+    </footer>
+  </main>
+  <script>
+    // ---------- Utilities ----------
+    const $ = (s) => document.querySelector(s);
+    const codeInput = $('#codeInput');
+    const statusEl = $('#status');
+    function getParam(name) {
+      const u = new URL(window.location.href);
+      return u.searchParams.get(name);
+    }
+    function setParam(name, value) {
+      const u = new URL(window.location.href);
+      if (value) u.searchParams.set(name, value); else u.searchParams.delete(name);
+      history.replaceState({}, '', u.toString());
+    }
+    function sanitizeCode(str) {
+      return (str || '').toString().trim();
+    }
+    function hexOnly(str) {
+      return (str || '').toLowerCase().replace(/[^0-9a-f]/g, '');
+    }
+    function padHexToBytes(hex) {
+      if (!hex) return '';
+      return hex.length % 2 === 1 ? hex + '0' : hex; // pad end to complete last byte
+    }
+    // Simple hash -> 32-bit uint
+    function xmur3(str) {
+      let h = 1779033703 ^ str.length;
+      for (let i = 0; i < str.length; i++) {
+        h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+        h = (h << 13) | (h >>> 19);
+      }
+      return function() {
+        h = Math.imul(h ^ (h >>> 16), 2246822507);
+        h = Math.imul(h ^ (h >>> 13), 3266489909);
+        h ^= h >>> 16;
+        return h >>> 0;
+      }
+    }
+    function sfc32(a, b, c, d) {
+      return function() {
+        a >>>= 0; b >>>= 0; c >>>= 0; d >>>= 0;
+        let t = (a + b) | 0;
+        a = b ^ b >>> 9;
+        b = c + (c << 3) | 0;
+        c = (c << 21 | c >>> 11);
+        d = d + 1 | 0;
+        t = t + d | 0;
+        c = c + t | 0;
+        return (t >>> 0) / 4294967296;
+      }
+    }
+    function seededPRNG(seedStr) {
+      const seed = xmur3(seedStr);
+      return sfc32(seed(), seed(), seed(), seed());
+    }
+    function randInt(rng, min, max) { // inclusive
+      return Math.floor(rng() * (max - min + 1)) + min;
+    }
+    function toColorFromNum(n) {
+      const h = (n >>> 0).toString(16).padStart(6, '0').slice(0, 6);
+      return '#' + h;
+    }
+    function deriveColors(code) {
+      const hex = hexOnly(code);
+      if (hex.length >= 12) {
+        return ['#' + hex.slice(0, 6), '#' + hex.slice(6, 12)];
+      } else if (hex.length >= 6) {
+        const c1 = '#' + hex.slice(0, 6);
+        const rng = seededPRNG(code + '|c2');
+        const n = Math.floor(rng() * 0xffffff);
+        return [c1, toColorFromNum(n)];
+      } else {
+        const rng1 = seededPRNG(code + '|c1');
+        const rng2 = seededPRNG(code + '|c2');
+        return [toColorFromNum(Math.floor(rng1() * 0xffffff)), toColorFromNum(Math.floor(rng2() * 0xffffff))];
+      }
+    }
+    function bytesFromHex(hex) {
+      const h = padHexToBytes(hex);
+      const out = [];
+      for (let i = 0; i < h.length; i += 2) {
+        out.push(parseInt(h.slice(i, i + 2), 16));
+      }
+      return out;
+    }
+    function formatBigInt(n) {
+      try {
+        // Use toLocaleString if available for BigInt grouping
+        return n.toLocaleString('en-US');
+      } catch (e) {
+        const s = n.toString();
+        return s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+      }
+    }
+    function toBase64(bytes) {
+      if (!bytes.length) return '';
+      let bin = '';
+      for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+      try { return btoa(bin); } catch { return ''; }
+    }
+    // ---------- UI Updates ----------
+    function applyColors(c1, c2) {
+      document.documentElement.style.setProperty('--c1', c1);
+      document.documentElement.style.setProperty('--c2', c2);
+      $('#swatch1').style.background = c1;
+      $('#swatch2').style.background = c2;
+      $('#gradient').style.background = `linear-gradient(90deg, ${c1}, ${c2})`;
+      $('#hex1').textContent = c1;
+      $('#hex2').textContent = c2;
+    }
+    function drawIdenticon(code, c1, c2) {
+      const cvs = $('#identicon');
+      const ctx = cvs.getContext('2d');
+      const rng = seededPRNG(code + '|identicon');
+      const size = 5, cell = Math.floor(cvs.width / size);
+      ctx.clearRect(0, 0, cvs.width, cvs.height);
+      ctx.fillStyle = 'rgba(0,0,0,.2)';
+      ctx.fillRect(0,0,cvs.width,cvs.height);
+      const on = hexOnly(code).length ? c1 : '#7dd3fc';
+      const off = 'rgba(255,255,255,.08)';
+      // mirror columns (0,1,2,1,0)
+      for (let y = 0; y < size; y++) {
+        for (let x = 0; x < Math.ceil(size/2); x++) {
+          const v = rng() > 0.5;
+          const col = v ? on : off;
+          // left side
+          ctx.fillStyle = col;
+          ctx.fillRect(x*cell + 6, y*cell + 6, cell-12/5, cell-12/5);
+          // mirror
+          const mx = size - 1 - x;
+          ctx.fillRect(mx*cell + 6, y*cell + 6, cell-12/5, cell-12/5);
+        }
+      }
+      // center column randomness
+      for (let y = 0; y < size; y++) {
+        const v = rng() > 0.5;
+        ctx.fillStyle = v ? on : off;
+        const x = 2;
+        ctx.fillRect(x*cell + 6, y*cell + 6, cell-12/5, cell-12/5);
+      }
+      // border stroke
+      ctx.strokeStyle = c2 + '55';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(1,1,cvs.width-2,cvs.height-2);
+    }
+    function drawPattern(code, c1, c2) {
+      const cvs = $('#pattern');
+      const ctx = cvs.getContext('2d');
+      const rng = seededPRNG(code + '|pattern');
+      const W = cvs.width, H = cvs.height;
+      ctx.clearRect(0,0,W,H);
+      // background gradient
+      const grad = ctx.createLinearGradient(0,0,W,H);
+      grad.addColorStop(0, c1 + '');
+      grad.addColorStop(1, c2 + '');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0,0,W,H);
+      // overlay shapes
+      const layers = 4 + Math.floor(rng() * 6);
+      for (let l = 0; l < layers; l++) {
+        const hueShift = Math.floor(rng() * 360);
+        ctx.globalAlpha = 0.08 + rng()*0.12;
+        // choose shape type
+        const type = randInt(rng, 0, 2); // 0 rects, 1 circles, 2 lines
+        const count = 12 + Math.floor(rng() * 28);
+        for (let i = 0; i < count; i++) {
+          const x = rng() * W;
+          const y = rng() * H;
+          const s = 12 + rng() * (W/4);
+          const angle = rng() * Math.PI * 2;
+          // color mix between c1 and c2 in oklab via CSS not available; approximate by lerp in sRGB
+          const t = rng();
+          const col = mixColors(c1, c2, t);
+          ctx.fillStyle = col;
+          ctx.strokeStyle = col;
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(angle);
+          if (type === 0) {
+            ctx.fillRect(-s/2, -s/2, s, s);
+          } else if (type === 1) {
+            ctx.beginPath();
+            ctx.arc(0,0,s/2,0,Math.PI*2);
+            ctx.fill();
+          } else {
+            ctx.lineWidth = 1 + rng()*4;
+            ctx.beginPath();
+            ctx.moveTo(-s/2, 0);
+            ctx.lineTo(s/2, 0);
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+      }
+      ctx.globalAlpha = 1;
+      // subtle vignette
+      const vg = ctx.createRadialGradient(W/2,H/2, Math.min(W,H)/4, W/2,H/2, Math.max(W,H)/1.1);
+      vg.addColorStop(0, 'rgba(0,0,0,0)');
+      vg.addColorStop(1, 'rgba(0,0,0,0.25)');
+      ctx.fillStyle = vg;
+      ctx.fillRect(0,0,W,H);
+    }
+    function hexToRgb(hex) {
+      const h = hex.replace('#','');
+      const r = parseInt(h.slice(0,2),16);
+      const g = parseInt(h.slice(2,4),16);
+      const b = parseInt(h.slice(4,6),16);
+      return [r,g,b];
+    }
+    function rgbToHex(r,g,b) {
+      const toH = (n)=> n.toString(16).padStart(2,'0');
+      return '#' + toH(r) + toH(g) + toH(b);
+    }
+    function mixColors(c1, c2, t) {
+      const a = hexToRgb(c1), b = hexToRgb(c2);
+      const r = Math.round(a[0] + (b[0]-a[0])*t);
+      const g = Math.round(a[1] + (b[1]-a[1])*t);
+      const b2 = Math.round(a[2] + (b[2]-a[2])*t);
+      return rgbToHex(r,g,b2);
+    }
+    function updateBytesTable(bytes) {
+      const tbody = $('#bytesBody');
+      tbody.innerHTML = '';
+      bytes.forEach((v, i) => {
+        const tr = document.createElement('tr');
+        tr.className = i % 2 ? 'bg-white/0' : 'bg-white/0';
+        tr.innerHTML = `
+          <td class="px-3 py-1.5 text-white/80">${i}</td>
+          <td class="px-3 py-1.5 text-white/90">${v.toString(16).padStart(2,'0')}</td>
+          <td class="px-3 py-1.5 text-white/70">${v}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+    function updateNumbers(hex) {
+      $('#hexSan').textContent = hex || '(none)';
+      $('#bitLen').textContent = (hex.length * 4) + ' bits';
+      // Decimal and Binary
+      if (hex && /^[0-9a-f]+$/i.test(hex)) {
+        try {
+          const big = BigInt('0x' + hex);
+          $('#decimal').textContent = formatBigInt(big);
+          $('#binary').textContent = big.toString(2).slice(0, 256) + (big.toString(2).length > 256 ? '…' : '');
+        } catch (e) {
+          $('#decimal').textContent = '(too large)';
+          $('#binary').textContent = '(too large)';
+        }
+      } else {
+        $('#decimal').textContent = '(n/a)';
+        $('#binary').textContent = '(n/a)';
+      }
+      // Base64 of bytes
+      const b = bytesFromHex(hex);
+      $('#base64').textContent = toBase64(b) || '(n/a)';
+    }
+    function updateAll(raw) {
+      const code = sanitizeCode(raw);
+      codeInput.value = code;
+      setParam('code', code);
+      const hex = hexOnly(code);
+      updateNumbers(hex);
+      updateBytesTable(bytesFromHex(hex));
+      const [c1, c2] = deriveColors(code);
+      applyColors(c1, c2);
+      drawIdenticon(code, c1, c2);
+      drawPattern(code, c1, c2);
+      // Update header status
+      const shown = code.length ? code : '(empty)';
+      statusEl.textContent = `Active code: ${shown}`;
+      document.title = `Code Visualizer – ${shown}`;
+    }
+    function randomHex(len = 12) {
+      const arr = new Uint8Array(Math.ceil(len/2));
+      crypto.getRandomValues(arr);
+      let s = Array.from(arr, b => b.toString(16).padStart(2,'0')).join('');
+      s = s.slice(0, len);
+      if (len === 12) s = s.slice(0, 8) + '-' + s.slice(8, 12); // similar style
+      return s;
+    }
+    // ---------- Events ----------
+    $('#randomBtn').addEventListener('click', () => {
+      updateAll(randomHex(12));
+      flash('Generated a random code');
+    });
+    $('#shareBtn').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        flash('Link copied to clipboard');
+      } catch {
+        flash('Unable to copy link');
+      }
+    });
+    codeInput.addEventListener('input', (e) => {
+      updateAll(e.target.value);
+    });
+    function flash(msg) {
+      statusEl.textContent = msg + ' • ' + statusEl.textContent.replace(/^.*?•\s*/, '');
+      statusEl.classList.remove('opacity-60');
+      statusEl.classList.add('text-white');
+      setTimeout(() => statusEl.classList.add('opacity-60'), 600);
+    }
+    // ---------- Init ----------
+    const initial = getParam('code') || 'a95d203e-22a4';
+    updateAll(initial);
+  </script>
+</body>
+</html>
