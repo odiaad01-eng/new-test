@@ -1,0 +1,341 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+
+// Types
+type MenuItem = {
+  id: number;
+  name: string;
+  price: number;
+  category: string;
+  image: string;
+};
+
+type CartState = Record<number, number>;
+
+const MENU_DATA: MenuItem[] = [
+  { id: 1, name: "Mumbai Style Vada Pav", price: 60, category: "vada-pav", image: "https://i.ibb.co/0VjHx49Z/IMG-20260318-063845.png" },
+  { id: 2, name: "Cheese Vada Pav", price: 80, category: "vada-pav", image: "https://i.ibb.co/G3bprsVD/vjgda6cj9xrmr0cwzyzt39y7tc-1.png" },
+  { id: 3, name: "Schezwan Vada Pav", price: 70, category: "vada-pav", image: "https://i.ibb.co/fGBCY6Mx/IMG-20260318-123731-png.png" },
+  { id: 4, name: "Paneer Vada Pav", price: 90, category: "vada-pav", image: "https://i.ibb.co/tp84FxnT/1cj52x110drmr0cwzz1a6xzmh8-1.png" },
+  { id: 5, name: "Vada Pav with Chai", price: 80, category: "vada-pav", image: "https://i.ibb.co/dwsh4YSS/IMG-20260318-123958-png.png" },
+  { id: 6, name: "Vada Pav with Cold Coffee", price: 130, category: "vada-pav", image: "https://i.ibb.co/cX2vt2kD/IMG-20260318-123835-png.png" },
+  { id: 7, name: "Chicken Strips (3 pcs)", price: 120, category: "fried-chicken", image: "https://i.ibb.co/1f0ZBZSm/IMG-20260318-102048.png" },
+  { id: 8, name: "Chicken Strips (5 pcs)", price: 180, category: "fried-chicken", image: "https://i.ibb.co/vxJCd86p/IMG-20260318-102108.png" },
+  { id: 9, name: "Popcorn Chicken (Medium)", price: 130, category: "fried-chicken", image: "https://i.ibb.co/wF3c09F6/IMG-20260318-102144.png" },
+  { id: 10, name: "Popcorn Chicken (Large)", price: 190, category: "fried-chicken", image: "https://i.ibb.co/d4bV77j6/IMG-20260318-102213.png" },
+  { id: 11, name: "Chicken Wings (Spicy - 4 pcs)", price: 140, category: "fried-chicken", image: "https://i.ibb.co/8DcW5t8T/IMG-20260318-110359.png" },
+  { id: 12, name: "Chicken Wings (Crispy - 4 pcs)", price: 140, category: "fried-chicken", image: "https://i.ibb.co/bRmYjG1K/IMG-20260318-110420.png" },
+  { id: 13, name: "Fried Chicken Leg (1 pc)", price: 90, category: "fried-chicken", image: "https://i.ibb.co/PGjC7VJc/IMG-20260318-110523.png" },
+  { id: 14, name: "Fried Chicken Leg (2 pcs)", price: 170, category: "fried-chicken", image: "https://i.ibb.co/4ZZGY7kt/IMG-20260318-110611.png" },
+  { id: 15, name: "Fried Chicken Wings (6 pcs)", price: 190, category: "fried-chicken", image: "https://i.ibb.co/Q37d7XV4/IMG-20260318-110656.png" },
+  { id: 16, name: "Chocolate Shake", price: 110, category: "thick-shakes", image: "https://i.ibb.co/m5X37sy2/IMG-20260318-110719.png" },
+  { id: 17, name: "Vanilla Shake", price: 100, category: "thick-shakes", image: "https://i.ibb.co/7JbxL2v1/IMG-20260318-110739.png" },
+  { id: 18, name: "Strawberry Shake", price: 110, category: "thick-shakes", image: "https://i.ibb.co/ch0m78Ty/IMG-20260318-110758.png" },
+  { id: 19, name: "Mango Shake", price: 110, category: "thick-shakes", image: "https://i.ibb.co/jky5vmm6/IMG-20260318-110817.png" },
+  { id: 20, name: "Oreo Shake", price: 130, category: "thick-shakes", image: "https://i.ibb.co/0yjsC7Gd/IMG-20260318-110849.png" },
+  { id: 21, name: "Butterscotch Shake", price: 120, category: "thick-shakes", image: "https://i.ibb.co/fYDThSF5/IMG-20260318-110906.png" },
+  { id: 22, name: "KitKat Shake", price: 140, category: "thick-shakes", image: "https://i.ibb.co/BH8f9x35/IMG-20260318-115132.png" },
+  { id: 23, name: "Virgin Mojito", price: 110, category: "mojitos", image: "https://i.ibb.co/5WbYqLyk/IMG-20260318-110924.png" },
+  { id: 24, name: "Blue Lagoon", price: 120, category: "mojitos", image: "https://i.ibb.co/bjnTgyR1/IMG-20260318-110949.png" },
+  { id: 25, name: "Green Apple Mojito", price: 130, category: "mojitos", image: "https://i.ibb.co/Y7PX0Q9T/IMG-20260318-111006.png" },
+  { id: 26, name: "Watermelon Mojito", price: 130, category: "mojitos", image: "https://i.ibb.co/93s83j46/IMG-20260318-111038.png" },
+  { id: 27, name: "Strawberry Mojito", price: 130, category: "mojitos", image: "https://i.ibb.co/21WXFZ8H/IMG-20260318-111053.png" },
+  { id: 28, name: "Mango Mojito", price: 130, category: "mojitos", image: "https://i.ibb.co/s9R6mx34/IMG-20260318-111107.png" },
+  { id: 29, name: "Iced Tea (Lemon)", price: 90, category: "refreshers", image: "https://i.ibb.co/PGQDLjzw/f8bcaf6f-9239-419f-a092-22dc30ca54a5-1773821546.jpg" },
+  { id: 30, name: "Iced Tea (Peach)", price: 90, category: "refreshers", image: "https://i.ibb.co/GqY7kFQ/56a737b1-1dc9-4493-98b1-16a2b91b2e12-1773821489.jpg" },
+  { id: 31, name: "Cold Coffee", price: 100, category: "refreshers", image: "https://i.ibb.co/TxWg3B4j/IMG-20260318-111842.png" },
+  { id: 32, name: "Cold Coffee with Ice Cream", price: 130, category: "refreshers", image: "https://i.ibb.co/mrzK4BrS/result-0.png" },
+  { id: 33, name: "French Fries (Salted)", price: 80, category: "snacks", image: "https://i.ibb.co/B5z4m06D/IMG-20260318-112621.png" },
+  { id: 34, name: "French Fries (Peri Peri)", price: 90, category: "snacks", image: "https://i.ibb.co/4n5XBR3K/IMG-20260318-112648.png" },
+  { id: 35, name: "Nachos with Cheese", price: 110, category: "snacks", image: "https://i.ibb.co/k2v7RVwV/IMG-20260318-113245.png" },
+  { id: 36, name: "Veg Burger", price: 90, category: "snacks", image: "https://i.ibb.co/chV9FbjN/IMG-20260318-112802.png" },
+  { id: 37, name: "Chicken Burger", price: 120, category: "snacks", image: "https://i.ibb.co/gLSC8yv4/result-0-1.png" },
+  { id: 38, name: "Chicken Club Burger", price: 150, category: "snacks", image: "https://i.ibb.co/20RL6pQ8/IMG-20260318-113133.png" },
+  { id: 39, name: "Veg Thukpa", price: 120, category: "specialties", image: "https://i.ibb.co/Kx3mCKWN/IMG-20260318-113154.png" },
+  { id: 40, name: "Chicken Thukpa", price: 150, category: "specialties", image: "https://i.ibb.co/BK2zSN9w/IMG-20260318-113221.png" },
+  { id: 41, name: "Veg Soup", price: 80, category: "specialties", image: "https://i.ibb.co/gbcgj0vn/IMG-20260318-121147.png" },
+  { id: 42, name: "Chicken Soup", price: 110, category: "specialties", image: "https://i.ibb.co/hFnJ4KpM/IMG-20260318-121210.png" },
+  { id: 43, name: "Boba Tea (Classic)", price: 140, category: "specialties", image: "https://i.ibb.co/B2cpmM71/IMG-20260318-113653.png" },
+  { id: 44, name: "Boba Tea (Fruit Flavored)", price: 160, category: "specialties", image: "https://i.ibb.co/gh7YQqF/IMG-20260318-140131.png" },
+];
+
+const CATEGORY_LABELS: Record<string, string> = {
+  all: "All",
+  "vada-pav": "Vada Pav",
+  "fried-chicken": "Fried Chicken",
+  "thick-shakes": "Thick Shakes",
+  mojitos: "Mojitos",
+  refreshers: "Refreshers",
+  snacks: "Snacks",
+  specialties: "Specialties",
+};
+
+function useAvailability() {
+  const [availability, setAvailability] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const apiUrl =
+      "https://script.googleusercontent.com/macros/echo?user_content_key=AWDtjMUOGBJajVDTNantER9BCpWDCv2pjbVgUYgawilrM3USE-wbxNSxf2iTGIMw0-DsKSgShYDbx5Z-mk-16cNfLVNRVK0Gy9cDUUqGCySCw6x9oxARbZ50EmIV4RE42NZNqrpmfH3hwjaOIUrlK4lWflw30Y8UxpRmVmcJyDH4xmKHh2Hsqk7D6AV9kpQoUb2xwdmIOqZlgLlf3YYm3OSbl6iwb-l8kBBfzzbPptpA7ixJx-smEkHZq6vrqx6QSM6Uy-usBGiryuXAjSJYYi2lBo2Jjr-BnQ&lib=MSlDtMnVu2AHYrLzHZxAvrPh5REasFrxn";
+
+    let mounted = true;
+    setLoading(true);
+    fetch(apiUrl, { cache: "no-cache" })
+      .then((r) => r.json())
+      .then((data) => {
+        if (!mounted) return;
+        const map: Record<string, string> = {};
+        if (Array.isArray(data)) {
+          data.forEach((item: any) => {
+            map[item.Product] = item.status;
+          });
+        }
+        setAvailability(map);
+      })
+      .catch(() => {
+        setAvailability({});
+      })
+      .finally(() => mounted && setLoading(false));
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  return { availability, loading } as const;
+}
+
+function formatINR(n: number) {
+  return `₹${n}`;
+}
+
+export default function App() {
+  const { availability } = useAvailability();
+  const [cart, setCart] = useState<CartState>({});
+  const [activeCategory, setActiveCategory] = useState<string>("all");
+  const [cartOpen, setCartOpen] = useState(false);
+  const [orderOpen, setOrderOpen] = useState(false);
+
+  const items = useMemo(
+    () =>
+      Object.entries(cart).map(([id, qty]) => {
+        const item = MENU_DATA.find((i) => i.id === Number(id))!;
+        return { ...item, quantity: qty as number } as MenuItem & { quantity: number };
+      }),
+    [cart]
+  );
+
+  const totals = useMemo(() => {
+    const totalItems = items.reduce((s, i) => s + i.quantity, 0);
+    const totalPrice = items.reduce((s, i) => s + i.quantity * i.price, 0);
+    return { totalItems, totalPrice };
+  }, [items]);
+
+  const filteredMenu = useMemo(() => {
+    return activeCategory === "all" ? MENU_DATA : MENU_DATA.filter((m) => m.category === activeCategory);
+  }, [activeCategory]);
+
+  // Handlers
+  const addToCart = (id: number) => setCart((c) => ({ ...c, [id]: (c[id] || 0) + 1 }));
+  const changeQty = (id: number, delta: number) =>
+    setCart((c) => {
+      const next = { ...c, [id]: (c[id] || 0) + delta };
+      if (next[id] <= 0) delete next[id];
+      return next;
+    });
+
+  const openOrder = () => {
+    if (items.length === 0) {
+      alert("Your cart is empty! Please add some items first.");
+      return;
+    }
+    setOrderOpen(true);
+    setCartOpen(false);
+  };
+
+  // WhatsApp order
+  const formRef = useRef<HTMLFormElement>(null);
+  const onSubmit: React.FormEventHandler<HTMLFormElement> = (e) => {
+    e.preventDefault();
+    const fd = new FormData(formRef.current!);
+    const name = String(fd.get("name") || "").trim();
+    const phone = String(fd.get("phone") || "").trim();
+    const address = String(fd.get("address") || "").trim();
+    const email = String(fd.get("email") || "").trim();
+    const instructions = String(fd.get("instructions") || "").trim();
+
+    let message = `*New Order from The Udala Café*\n\n`;
+    message += `*Customer Details:*\n`;
+    message += `Name: ${name}\n`;
+    message += `Phone: ${phone}\n`;
+    if (email) message += `Email: ${email}\n`;
+    message += `Address: ${address}\n`;
+    if (instructions) message += `Instructions: ${instructions}\n\n`;
+
+    message += `*Order Items:*\n`;
+    items.forEach((it) => {
+      message += `- ${it.name} x ${it.quantity} (${formatINR(it.price * it.quantity)})\n`;
+    });
+
+    message += `\n*Total Amount: ${formatINR(totals.totalPrice)}*`;
+
+    const whatsappNumber = "918917411897";
+    const encodedMessage = encodeURIComponent(message);
+    window.open(`https://wa.me/${whatsappNumber}?text=${encodedMessage}`, "_blank");
+
+    // Reset cart after sending
+    setTimeout(() => {
+      setCart({});
+      setActiveCategory("all");
+    }, 0);
+  };
+
+  // UI helpers
+  const sectionTitle = "text-3xl md:text-4xl font-extrabold text-[#800000] tracking-tight";
+  const sectionSubtitle = "text-[#4B3621] max-w-2xl mx-auto";
+
+  return (
+    <div className="min-h-screen bg-[#FAF7F0] text-[#1a1a1a]" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+      {/* Navbar */}
+      <nav className="fixed inset-x-0 top-0 z-50 bg-[rgba(250,247,240,0.95)] backdrop-blur-md shadow-md">
+        <div className="container mx-auto max-w-[1200px] px-5 py-4 flex items-center justify-between">
+          <a href="#home" className="font-[Playfair Display] text-xl font-bold text-[#800000]">☕ The Udala Café</a>
+          <ul className="hidden md:flex gap-8 text-[#4B3621] font-medium">
+            <li><a className="hover:text-[#800000]" href="#home">Home</a></li>
+            <li><a className="hover:text-[#800000]" href="#menu">Menu</a></li>
+            <li><a className="hover:text-[#800000]" href="#about">About</a></li>
+            <li><a className="hover:text-[#800000]" href="#contact">Contact</a></li>
+          </ul>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setCartOpen((v) => !v)} className="bg-[#800000] hover:bg-[#A00000] text-white rounded-full px-5 py-2 font-semibold shadow flex items-center gap-2">
+              <span>🛒</span>
+              <span className="hidden sm:inline">Cart</span>
+              <span className="bg-[#D4A853] text-[#1a1a1a] font-bold rounded-full text-xs px-2 py-0.5">{totals.totalItems}</span>
+            </button>
+            {/* mobile menu */}
+            <details className="md:hidden">
+              <summary className="list-none cursor-pointer text-2xl leading-none text-[#4B3621]">☰</summary>
+              <ul className="absolute right-4 mt-2 w-48 rounded-xl bg-[#FAF7F0] p-4 shadow-lg space-y-2 text-sm">
+                <li><a className="block hover:text-[#800000]" href="#home">Home</a></li>
+                <li><a className="block hover:text-[#800000]" href="#menu">Menu</a></li>
+                <li><a className="block hover:text-[#800000]" href="#about">About</a></li>
+                <li><a className="block hover:text-[#800000]" href="#contact">Contact</a></li>
+              </ul>
+            </details>
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero */}
+      <section id="home" className="relative min-h-[90vh] md:min-h-screen flex items-center pt-24 overflow-hidden">
+        <div className="absolute -top-24 -right-24 w-[500px] h-[500px] bg-[#800000] rounded-full opacity-5" />
+        <div className="absolute -bottom-40 -left-40 w-[600px] h-[600px] bg-[#C2A378] rounded-full opacity-10" />
+        <div className="container mx-auto max-w-[1200px] px-5 grid md:grid-cols-2 gap-10 items-center relative z-10">
+          <div className="space-y-6 text-center md:text-left">
+            <h1 className="text-4xl md:text-6xl font-extrabold leading-tight text-[#1a1a1a]">
+              The Udala Café – <span className="text-[#800000]">Udala Ka Apna Café</span>
+            </h1>
+            <p className="text-lg text-[#4B3621]">Sit, Relax, and Enjoy the Best Bites in Town</p>
+            <div className="flex flex-wrap justify-center md:justify-start gap-3">
+              <a href="#menu" className="btn-primary inline-flex items-center justify-center rounded-full bg-[#800000] px-6 py-3 font-semibold text-white shadow hover:bg-[#A00000] transition">View Menu</a>
+              <a href="tel:+918917411897" className="inline-flex items-center justify-center rounded-full border-2 border-[#800000] bg-white px-6 py-3 font-semibold text-[#800000] hover:bg-[#800000] hover:text-white transition">📞 Call to Order</a>
+            </div>
+            <div className="flex justify-center md:justify-start gap-10 pt-4">
+              <div className="text-center">
+                <div className="font-[Playfair Display] text-2xl font-bold text-[#800000]">40+</div>
+                <div className="text-sm text-[#4B3621]">Menu Items</div>
+              </div>
+              <div className="text-center">
+                <div className="font-[Playfair Display] text-2xl font-bold text-[#800000]">100%</div>
+                <div className="text-sm text-[#4B3621]">Fresh Ingredients</div>
+              </div>
+              <div className="text-center">
+                <div className="font-[Playfair Display] text-2xl font-bold text-[#800000]">Daily</div>
+                <div className="text-sm text-[#4B3621]">12PM - 10PM</div>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center justify-center">
+            {/* Hero DP image as requested */}
+            <img
+              src="https://i.ibb.co/whfPftJj/618609986-17854371171605297-1000371464139687061-n.jpg"
+              alt="The Udala Café - featured"
+              width={450}
+              height={450}
+              loading="lazy"
+              className="size-[300px] md:size-[450px] object-cover rounded-full shadow-2xl animate-[float_3s_ease-in-out_infinite]"
+              style={{ animationName: "float" }}
+            />
+          </div>
+        </div>
+        <style>{`@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}`}</style>
+      </section>
+
+      {/* Menu */}
+      <section id="menu" className="py-16 md:py-20 bg-white">
+        <div className="container mx-auto max-w-[1200px] px-5">
+          <h2 className={sectionTitle}>Our Menu</h2>
+          <p className={`${sectionSubtitle} text-center mt-2 mb-8`}>Explore our delicious offerings. Add items to your order and checkout seamlessly!</p>
+
+          {/* Tabs */}
+          <div className="flex flex-wrap justify-center gap-2 md:gap-3 mb-8">
+            {(["all", "vada-pav", "fried-chicken", "thick-shakes", "mojitos", "refreshers", "snacks", "specialties"]).map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className={`px-5 py-2 rounded-full font-semibold border-2 transition ${
+                  activeCategory === cat
+                    ? "bg-[#800000] border-[#800000] text-white"
+                    : "bg-[#FAF7F0] border-[#C2A378] text-[#4B3621] hover:border-[#800000]"
+                }`}
+              >
+                {CATEGORY_LABELS[cat]}
+              </button>
+            ))}
+          </div>
+
+          {/* Grid */}
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
+            {filteredMenu.map((m) => {
+              const qty = cart[m.id] || 0;
+              const status = availability[m.name] || "Available";
+              const soldOut = status === "Sold Out";
+              return (
+                <div key={m.id} className={`relative rounded-2xl bg-white shadow transition hover:shadow-xl ${soldOut ? "opacity-80" : ""}`}>
+                  <img src={m.image} alt={m.name} className="h-44 w-full object-cover rounded-t-2xl bg-slate-100" loading="lazy" />
+                  {soldOut && (
+                    <span className="absolute left-3 top-3 rounded-full bg-[#800000] px-3 py-1 text-xs font-bold text-white">Sold Out</span>
+                  )}
+                  {qty > 0 && (
+                    <span className="absolute right-3 top-3 rounded-full bg-[#D4A853] px-3 py-1 text-xs font-bold text-[#1a1a1a]">{qty} in cart</span>
+                  )}
+                  <div className="p-5 space-y-3">
+                    <h3 className="text-lg font-bold">{m.name}</h3>
+                    <div className="text-xl font-extrabold text-[#800000]">{formatINR(m.price)}</div>
+                    <div className="flex items-center justify-between gap-2">
+                      {soldOut ? (
+                        <button disabled className="rounded-full bg-slate-200 px-4 py-2 font-semibold text-slate-500 cursor-not-allowed">Out of Stock</button>
+                      ) : qty > 0 ? (
+                        <div className="flex items-center gap-3">
+                          <button onClick={() => changeQty(m.id, -1)} className="size-9 rounded-full border-2 border-[#C2A378] bg-[#FAF7F0] text-lg font-bold hover:bg-[#800000] hover:text-white hover:border-[#800000]">−</button>
+                          <span className="w-8 text-center font-bold">{qty}</span>
+                          <button onClick={() => changeQty(m.id, 1)} className="size-9 rounded-full border-2 border-[#C2A378] bg-[#FAF7F0] text-lg font-bold hover:bg-[#800000] hover:text-white hover:border-[#800000]">+</button>
+                        </div>
+                      ) : (
+                        <button onClick={() => addToCart(m.id)} className="rounded-full bg-[#800000] px-5 py-2 font-semibold text-white hover:bg-[#A00000]">Add to Order</button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* About */}
+      <section id="about" className="py-16">
+        <div className="container mx-auto max-w-[1200px] px-5 grid gap-10 md:grid-cols-2 items-center">
+          <div>
+            <img src="https://i.ibb.co/60L1v1vL/IMG-20260318-064048.png" alt="Our Story" className="rounded-2xl shadow-2xl" loading="lazy" />
+          </div>
+          <div
